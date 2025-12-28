@@ -1,0 +1,4 @@
+# Miniature Train
+
+This repo contains a NixOS config that allows to control miniature trains via
+Raspberry Pi 5.
