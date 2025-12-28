@@ -1,8 +1,8 @@
 {
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.11";
-    raspberry-pi-nix.url = "github:nix-community/raspberry-pi-nix";
-    raspberry-pi-nix.inputs.nixpkgs.follows = "nixpkgs";
+    nixos-raspberrypi.url = "github:nvmd/nixos-raspberrypi/main";
+    # nixos-raspberrypi.inputs.nixpkgs.follows = "nixpkgs";
     git-hooks-nix.url = "github:cachix/git-hooks.nix";
     git-hooks-nix.inputs.nixpkgs.follows = "nixpkgs";
   };
@@ -10,9 +10,8 @@
   outputs =
     { self
     , nixpkgs
-    , raspberry-pi-nix
+    , nixos-raspberrypi
     , git-hooks-nix
-    ,
     }:
     let
       pkgs = import nixpkgs { system = "x86_64-linux"; };
@@ -31,35 +30,37 @@
         };
       };
 
-      nixosConfigurations.rpi5 = raspberry-pi-nix.lib.nixosInstaller {
-        # system = "aarch64-linux";
+      nixosConfigurations.rpi5 = nixos-raspberrypi.lib.nixosSystem {
+        specialArgs = { inherit nixpkgs nixos-raspberrypi; };
         modules = [
           {
             imports = with nixos-raspberrypi.nixosModules; [
-              raspeberry-pi-5.base
+              raspberry-pi-5.base
             ];
           }
           (
-            { pkgs, config, ... }:
+            { pkgs, ... }:
             {
-              boot.loader.raspeberryPi.bootloader = "kernel";
-              system.nixos.tags =
-                let
-                  cfg = config.boot.loader.raspberryPi;
-                in
-                [
-                  "raspberry-pi-${cfg.variant}"
-                  cfg.bootloader
-                  config.boot.kernelPackages.kernel.version
-                ];
-
-              # bcm2711 for rpi 3, 3+, 4, zero 2 w
-              # bcm2712 for rpi 5
-              # See the docs at:
-              # https://www.raspberrypi.com/documentation/computers/linux_kernel.html#native-build-configuration
-              raspberry-pi-nix.board = "bcm2712";
               time.timeZone = "Europe/Berlin";
               security.sudo.wheelNeedsPassword = false;
+
+              fileSystems = {
+                "/boot/firmware" = {
+                  device = "/dev/disk/by-label/FIRMWARE";
+                  fsType = "vfat";
+                  options = [
+                    "noatime"
+                    "noauto"
+                    "x-systemd.automount"
+                    "x-systemd.idle-timeout=1min"
+                  ];
+                };
+                "/" = {
+                  device = "/dev/disk/by-label/NIXOS_SD";
+                  fsType = "ext4";
+                  options = [ "noatime" ];
+                };
+              };
 
               users.users.m1-s = {
                 isNormalUser = true;
