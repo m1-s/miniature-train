@@ -21,6 +21,8 @@
         inherit (self.checks.x86_64-linux.pre-commit-check) shellHook;
       };
 
+      packages.x86_64-linux.srcpd-rust = pkgs.callPackage ./srcpd.nix { };
+
       checks.x86_64-linux.pre-commit-check = git-hooks-nix.lib.x86_64-linux.run {
         src = ./.;
         hooks = {
