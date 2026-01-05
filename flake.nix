@@ -128,8 +128,7 @@
       };
       overlays.default = _: final: {
         srcpd-rust = final.rustPlatform.buildRustPackage {
-          pname = "srcpd-rust";
-          version = "1.7.0";
+          name = "srcpd-rust";
           src = srcpd-rust;
           cargoHash = "sha256-UXmKHZV82JZslivH+sOdRAl8t6BGH8Su1v2hbplhKjU=";
         };
