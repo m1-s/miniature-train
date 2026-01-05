@@ -5,6 +5,8 @@
     # nixos-raspberrypi.inputs.nixpkgs.follows = "nixpkgs";
     git-hooks-nix.url = "github:cachix/git-hooks.nix";
     git-hooks-nix.inputs.nixpkgs.follows = "nixpkgs";
+    srcpd-rust.url = "github:m1-s/srcpd_rust?ref=addLock";
+    srcpd-rust.flake = false;
   };
 
   outputs =
@@ -12,16 +14,22 @@
     , nixpkgs
     , nixos-raspberrypi
     , git-hooks-nix
+    , srcpd-rust
     }:
     let
-      pkgs = import nixpkgs { system = "x86_64-linux"; };
+      pkgs = import nixpkgs {
+        system = "x86_64-linux";
+        overlays = [ self.overlays.default ];
+      };
     in
     {
       devShells.x86_64-linux.default = pkgs.mkShell {
         inherit (self.checks.x86_64-linux.pre-commit-check) shellHook;
       };
 
-      packages.x86_64-linux.srcpd-rust = pkgs.callPackage ./srcpd.nix { };
+      packages.x86_64-linux = {
+        inherit (pkgs) srcpd-rust;
+      };
 
       checks.x86_64-linux.pre-commit-check = git-hooks-nix.lib.x86_64-linux.run {
         src = ./.;
@@ -117,6 +125,14 @@
             }
           )
         ];
+      };
+      overlays.default = _: final: {
+        srcpd-rust = final.rustPlatform.buildRustPackage {
+          pname = "srcpd-rust";
+          version = "1.7.0";
+          src = srcpd-rust;
+          cargoHash = "sha256-UXmKHZV82JZslivH+sOdRAl8t6BGH8Su1v2hbplhKjU=";
+        };
       };
     };
 }

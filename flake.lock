@@ -174,7 +174,25 @@
       "inputs": {
         "git-hooks-nix": "git-hooks-nix",
         "nixos-raspberrypi": "nixos-raspberrypi",
-        "nixpkgs": "nixpkgs_2"
+        "nixpkgs": "nixpkgs_2",
+        "srcpd-rust": "srcpd-rust"
+      }
+    },
+    "srcpd-rust": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1767602101,
+        "narHash": "sha256-dRsnOz1tHgFZUU0F7fZTkSfcpYcchsLDIlT5LUxGK6Y=",
+        "owner": "m1-s",
+        "repo": "srcpd_rust",
+        "rev": "ba386807ab0708014761331abe280c4366df479e",
+        "type": "github"
+      },
+      "original": {
+        "owner": "m1-s",
+        "ref": "addLock",
+        "repo": "srcpd_rust",
+        "type": "github"
       }
     }
   },
