@@ -40,7 +40,7 @@
         };
       };
 
-      nixosConfigurations.rpi5 = nixos-raspberrypi.lib.nixosSystem {
+      nixosConfigurations.default = nixos-raspberrypi.lib.nixosSystem {
         specialArgs = { inherit nixpkgs nixos-raspberrypi; };
         modules = [
           {
@@ -53,6 +53,31 @@
             {
               time.timeZone = "Europe/Berlin";
               security.sudo.wheelNeedsPassword = false;
+
+              networking = {
+                useNetworkd = true;
+                wireless.iwd = {
+                  enable = true;
+                  settings.Settings.AutoConnect = true;
+                };
+                useDHCP = false;
+              };
+              systemd.tmpfiles.rules = [
+                "f /var/lib/iwd/foo.psk 0600 root root - [Security]\nPassphrase=bar"
+              ];
+              systemd.network = {
+                enable = true;
+                networks."25-wireless" = {
+                  matchConfig.Name = "wlan0";
+                  address = [ "192.168.178.107/24" ];
+                  gateway = [ "192.168.178.1" ];
+                  networkConfig.DHCP = "no";
+                  # Helps with "Dormant" status if the signal blips
+                  linkConfig.RequiredForOnline = "routable";
+                };
+              };
+              services.resolved.enable = true;
+              networking.hostName = "miniature-train-rpi";
 
               fileSystems = {
                 "/boot/firmware" = {
@@ -75,7 +100,6 @@
               users.users.m1-s = {
                 isNormalUser = true;
                 extraGroups = [
-                  "libvirtd"
                   "networkmanager"
                   "wheel"
                 ];
@@ -86,11 +110,7 @@
                 ];
               };
 
-              networking = {
-                hostName = "miniature-train-rpi";
-                #useDHCP = false;
-                #interfaces = { wlan0.useDHCP = true; };
-              };
+              nix.settings.trusted-users = [ "@wheel" ];
 
               environment.systemPackages = with pkgs; [
                 vim
@@ -103,24 +123,6 @@
                 settings.PasswordAuthentication = false;
               };
 
-              hardware = {
-                # bluetooth.enable = true;
-                # TODO: check if needed
-                # raspberry-pi = {
-                #   config = {
-                #     all = {
-                #       base-dt-params = {
-                #         # enable autoprobing of bluetooth driver
-                #         # https://github.com/raspberrypi/linux/blob/c8c99191e1419062ac8b668956d19e788865912a/arch/arm/boot/dts/overlays/README#L222-L224
-                #         krnbt = {
-                #           enable = true;
-                #           value = "on";
-                #         };
-                #       };
-                #     };
-                #   };
-                # };
-              };
               system.stateVersion = "25.11";
             }
           )
