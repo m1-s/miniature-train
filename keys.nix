@@ -1,0 +1,4 @@
+{
+  rpi = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINYwtlISLiDoEnt7KcPSGff7TE0DkWtLYfwHq+DBb8TU";
+  m1-s = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINaGspw6myJ5GKHHxN+7jaJWyU1SlVo4nCzDajyJdtvg m1-s@thinkbook";
+}
