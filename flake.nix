@@ -5,52 +5,58 @@
     nixos-raspberrypi.url = "github:nvmd/nixos-raspberrypi/main";
     # nixos-raspberrypi.inputs.nixpkgs.follows = "nixpkgs";
 
+    flake-utils.url = "github:numtide/flake-utils";
+
     git-hooks-nix.url = "github:cachix/git-hooks.nix";
     git-hooks-nix.inputs.nixpkgs.follows = "nixpkgs";
 
     agenix-repo.url = "github:ryantm/agenix";
     agenix-repo.inputs.nixpkgs.follows = "nixpkgs";
 
-    srcpd-rust.url = "github:m1-s/srcpd_rust?ref=addLock";
-    srcpd-rust.flake = false;
+    srcpd-rust-repo.url = "github:m1-s/srcpd_rust?ref=addLock";
+    srcpd-rust-repo.flake = false;
   };
 
   outputs =
     { self
     , nixpkgs
     , nixos-raspberrypi
+    , flake-utils
     , git-hooks-nix
-    , srcpd-rust
+    , srcpd-rust-repo
     , agenix-repo
     }:
-    let
-      pkgs = import nixpkgs {
-        system = "x86_64-linux";
-        overlays = [
-          self.overlays.default
-          agenix-repo.overlays.default
-        ];
-      };
-    in
-    {
-      devShells.x86_64-linux.default = pkgs.mkShell {
-        inherit (self.checks.x86_64-linux.pre-commit-check) shellHook;
-        packages = with pkgs; [ agenix ];
-      };
-
-      packages.x86_64-linux = {
-        inherit (pkgs) srcpd-rust;
-      };
-
-      checks.x86_64-linux.pre-commit-check = git-hooks-nix.lib.x86_64-linux.run {
-        src = ./.;
-        hooks = {
-          nixpkgs-fmt.enable = true;
-          statix.enable = true;
-          deadnix.enable = true;
+    flake-utils.lib.eachDefaultSystem
+      (system:
+      let
+        pkgs = import nixpkgs {
+          inherit system;
+          overlays = [
+            self.overlays.default
+            agenix-repo.overlays.default
+          ];
         };
-      };
+      in
+      {
+        devShells.default = pkgs.mkShell {
+          inherit (self.checks.${system}.pre-commit-check) shellHook;
+          packages = with pkgs; [ agenix ];
+        };
 
+        packages = {
+          inherit (pkgs) srcpd-rust;
+          rocrail = pkgs.callPackage ./rocrail.nix { };
+        };
+
+        checks.pre-commit-check = git-hooks-nix.lib.x86_64-linux.run {
+          src = ./.;
+          hooks = {
+            nixpkgs-fmt.enable = true;
+            statix.enable = true;
+            deadnix.enable = true;
+          };
+        };
+      }) // {
       nixosConfigurations.default = nixos-raspberrypi.lib.nixosSystem {
         specialArgs = { inherit nixpkgs nixos-raspberrypi; };
         modules = [
@@ -65,6 +71,7 @@
             {
               time.timeZone = "Europe/Berlin";
               security.sudo.wheelNeedsPassword = false;
+              nixpkgs.overlays = [ self.overlays.default ];
 
               networking = {
                 hostName = "miniature-train-rpi";
@@ -95,22 +102,12 @@
 
               services = {
                 resolved.enable = true;
-                # autologin for local access
-                # getty.autologinUser = "root";
-                # displayManager.autoLogin = {
-                #   enable = true;
-                #   user = "root";
-                # };
                 displayManager.gdm.enable = true;
                 desktopManager.gnome.enable = true;
                 openssh = {
                   enable = true;
                   settings.PasswordAuthentication = false;
                 };
-                # xserver = {
-                #   enable = true;
-                #   # xkb.layout = "us";
-                # };
               };
 
               fileSystems = {
@@ -145,7 +142,13 @@
                 };
 
                 # easy local login
-                bernhart.password = "";
+                bernhard = {
+                  isNormalUser = true;
+                  extraGroups = [
+                    "networkmanager"
+                    "wheel"
+                  ];
+                };
               };
 
               security.pam.services.login.allowNullPassword = true;
@@ -157,12 +160,27 @@
                 '';
               };
 
-              environment.systemPackages = with pkgs; [
-                vim
-                git
-                wget
-                firefox
-              ];
+              environment.systemPackages =
+                let
+                  srcpdConf = pkgs.writeText "srcpd.conf" ''
+                    [srcp]
+                    port = 4303
+                  '';
+                  startSrcpd = pkgs.writeShellScriptBin "start-srcpd" ''
+                    ${pkgs.srcpd-rust}/bin/srcpd ${srcpdConf}
+                  '';
+                in
+                with pkgs; [
+                  vim
+                  git
+                  wget
+                  firefox
+                  rocrail
+                  srcpd-rust
+                  tmate
+                  htop
+                  startSrcpd
+                ];
 
               system.stateVersion = "25.11";
 
@@ -183,9 +201,10 @@
       overlays.default = _: final: {
         srcpd-rust = final.rustPlatform.buildRustPackage {
           name = "srcpd-rust";
-          src = srcpd-rust;
+          src = srcpd-rust-repo;
           cargoHash = "sha256-UXmKHZV82JZslivH+sOdRAl8t6BGH8Su1v2hbplhKjU=";
         };
+        rocrail = final.callPackage ./rocrail.nix { };
       };
     };
 }
